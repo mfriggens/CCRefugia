@@ -1,1 +1,150 @@
 
+library(nloptr)
+#composite index weight optimization function
+
+
+
+optimize_composite_index <- function(data, 
+                                     min_weight = 0.01,  # Minimum weight for any variable
+                                     max_weight = NULL,  # Maximum weight (optional)
+                                     seed = 123,
+                                     verbose = TRUE) {
+  # Set random seed for reproducibility
+  set.seed(seed)
+  
+  # Number of variables
+  n_vars <- ncol(data)
+  
+  # If max_weight not specified, calculate dynamically
+  if (is.null(max_weight)) {
+    # Suggested max weight based on number of variables
+    max_weight <- min(0.5, max(0.2, 1 / (n_vars * 1.5)))
+  }
+  
+  # Diagnostic checks
+  if (verbose) {
+    cat("Optimization Parameters:\n")
+    cat("Number of variables:", n_vars, "\n")
+    cat("Minimum weight:", min_weight, "\n")
+    cat("Maximum weight:", max_weight, "\n")
+    
+    # Correlation analysis
+    cor_matrix <- cor(data)
+    cor_summary <- summary(cor_matrix[upper.tri(cor_matrix)])
+    cat("\nCorrelation Matrix Summary:\n")
+    print(cor_summary)
+  }
+  
+  # Objective function with entropy and variance penalties
+  objective_function <- function(weights) {
+    # Ensure weights are valid
+    weights <- pmax(min_weight, weights)# to prevent weight of 0
+    weights <- weights / sum(weights)
+    
+    # Multiple penalty terms
+    # 1. Variance of weights
+## substituting in weighted_var    weight_variance <- var(weights)
+    # Compute weighted variance to encourage spread
+    weighted_var <- var(weights * (1:n_vars))   
+    # 2. Entropy to discourage uniform weights
+    entropy <- -sum(weights * log(weights + 1e-10))
+    
+    # 3. Penalize extreme weight distributions
+    skewness <- sum((weights - mean(weights))^3)
+    
+    # Combined objective (minimize these)
+    return(weight_var + 0.5 * entropy + 0.1 * abs(skewness))
+    # Combined objective with no minimization (not used here)
+   # return(weighted_var + entropy)
+  }
+  
+  # Gradient approximation
+   objective_gradient <- function(weights) {
+ # Numerical gradient approximation
+   grad <- numeric(length(weights))
+   h <- 1e-8
+ base_obj <- objective_function(weights)
+  
+ for (i in 1:length(weights)) {
+    perturbed_weights <- weights
+      perturbed_weights[i] <- perturbed_weights[i] + h
+  
+  #     # Reproject to valid weight space
+   perturbed_weights <- pmax(min_weight, perturbed_weights)
+    perturbed_weights <- perturbed_weights / sum(perturbed_weights)
+   
+    grad[i] <- (objective_function(perturbed_weights) - base_obj) / h
+    }
+  
+    return(grad)
+  }
+  
+  # Initial weights with controlled variation
+  initial_weights <- runif(n_vars, min_weight, max_weight)
+  initial_weights <- initial_weights / sum(initial_weights)
+  
+  # Equality constraint (weights sum to 1)
+  eq_constraint <- function(weights) {
+    return(sum(weights) - 1)
+  }
+  
+  # Perform optimization
+  result <- nloptr::nloptr(
+    x0 = initial_weights,
+    eval_f = objective_function,
+    #eval_grad_f = objective_gradient,
+    eval_g_eq = eq_constraint,
+    lb = rep(min_weight, n_vars),
+    ub = rep(max_weight, n_vars),
+    opts = list(
+      "algorithm" = "NLOPT_LN_COBYLA",
+      "xtol_rel" = 1e-10,
+      "maxeval" = 5000
+    )
+  )
+  
+  # Normalize and constrain weights
+  optimized_weights <- pmax(min_weight, result$solution)
+  optimized_weights <- optimized_weights / sum(optimized_weights)
+  
+  # Calculate composite index
+  composite_index <- as.matrix(data) %*% optimized_weights
+  
+  # Normalize composite index to 0-1 range
+  normalized_index <- (composite_index - min(composite_index)) / 
+    (max(composite_index) - min(composite_index))
+  
+  # Prepare detailed output
+  output <- list(
+    weights = optimized_weights,
+    weight_details = data.frame(
+      variable = colnames(data),
+      weight = optimized_weights,
+      stringsAsFactors = FALSE
+    ),
+    composite_index = as.vector(normalized_index),
+    optimization_details = list(
+      objective_value = result$objective,
+      iterations = result$iterations,
+      status = result$status
+    )
+  )
+  
+  # Verbose output
+  if (verbose) {
+    cat("\nOptimized Weights:\n")
+    print(output$weight_details)
+    
+    cat("\nWeight Statistics:\n")
+    print(summary(output$weights))
+  }
+  
+  return(output)
+}
+
+# Example usage function
+# Run optimization with flexible constraints
+data =subset(Mamm_Z_clim, select=-c(1)) # removed HUC number
+data =subset(Mamm_Z_topo, select=-c(1,6,9)) # first round found alot of correlations not noted with raw values
+data =subset(Mamm_Z_topo, select=-c(1,5,6))# minus highly correlated variables, cti_mean
+data =subset(Mamm_Z_topo, select=-c(1,4,5,9,11))# minus highly correlated variables, cti_mean, tpi_rev
