@@ -148,3 +148,39 @@ data =subset(Mamm_Z_clim, select=-c(1)) # removed HUC number
 data =subset(Mamm_Z_topo, select=-c(1,6,9)) # first round found alot of correlations not noted with raw values
 data =subset(Mamm_Z_topo, select=-c(1,5,6))# minus highly correlated variables, cti_mean
 data =subset(Mamm_Z_topo, select=-c(1,4,5,9,11))# minus highly correlated variables, cti_mean, tpi_rev
+
+
+
+# Visualization and summary
+print("Optimized Weights:")
+print(result$weights)
+
+print("\nWeight Summary:")
+print(result$weight_summary)
+
+library(ggplot2)
+
+# Optional: Create weight distribution plot
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  weights_df <- data.frame(
+    variable = paste0("var_", 1:5),
+    weight = result$weights
+  )
+  
+  p <- ggplot2::ggplot(weights_df, ggplot2::aes(x = variable, y = weight)) +
+    ggplot2::geom_bar(stat = "identity") +
+    ggplot2::theme_minimal() +
+    ggplot2::labs(
+      title = "Optimized Weights for Composite Index",
+      x = "Variables",
+      y = "Weight"
+    ) +
+    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
+  
+  print(p)
+}
+
+return(result)
+}
+# Demonstrates usage
+result <- run_composite_index_example()
