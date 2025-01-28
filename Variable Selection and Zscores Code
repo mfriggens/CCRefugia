@@ -1,1 +1,154 @@
+## This code generates composite scores for each taxa. Scores include weights determined through optimization step
+## Used this file to link HUC12 designations to CI. 
+
+library("Hmisc")
+library("corrplot")
+library("rstatix")
+library(ggplot2)
+library(dplyr)
+
+###Select variables of interest. Variables selected based on Random Forest and OLS run in ArcPro
+
+climate_Z=subset(clim_mean_analysis, select=-c(5, 11, 12,  14, 15, 18))
+# Create dummy variables for indicators that have inverse relationship with desired conditions (e.g. greater temperature change = bad)
+climate_Z$Diff_bio9_mean_rev= climate_Z$Diff_bio9_mean*-1
+climate_Z$Diff_bio8_mean_rev= climate_Z$Diff_bio8_mean*-1
+climate_Z$Diff_bio4_mean_rev= climate_Z$Diff_bio4r_mean*-1
+climate_Z$Diff_bio1_mean_rev= climate_Z$Diff_bio1_mean*-1
+climate_Z$back_95_55_mean_rev= climate_Z$back_95_55_mean*-1
+climate_Z$meandifhmi_rev = climate_Z$meandifhmi*-1
+
+#Drop oringal values
+climate_Z=subset(climate_Z, select=-c( 7:12))
+
+# Create standardized scores for indicators
+columns_to_stand1 = c(2:13)
+climate_Z [columns_to_stand1]= lapply(climate_Z[columns_to_stand1], scale)
+
+
+climate_Z1 = na.omit(climate_Z)
+
+##correlations of Zscores- though correlations were reduced among variables based on raw values, standardizing values results in new correlations among variable steps
+
+cor_Ztopo = cor(climate_Z1, use="complete.obs")
+
+#Set up parameter for visualization
+cor_Ztopo %>%
+  cor_reorder() %>%
+  pull_lower_triangle() %>%
+  cor_plot(label = TRUE, number.cex=7/ncol(climate_Z))
+
+# visualizing correlogram as circle
+corrplot(cor_Ztopo, method="circle")
+
+######################### Calculate Z scores. Code is included because it shows the final weights used for each taxa and records variable names used in final distributed shapefile
+
+mamm_CI_topo = subset(Mamm_Z, select=-c(7)) #as produced from New Zscores 12.17(0111)
+
+#Optimized Weights:
+#1     Gap_2011_S   0.25
+#2     roughness_   0.30
+#3     mean_watst   0.3
+#4 sbd250m_10_rev   0.05
+#5     Pct_northn   0.05
+#6       HLIratio   0.05
+
+mamm_CI_topo$SumW_mamm =(mamm_CI_topo$Gap_2011_S*0.25) + (mamm_CI_topo$mean_watst*0.3) + 
+    (mamm_CI_topo$Pct_northn*0.05) + (mamm_CI_topo$roughness_*0.30) + 
+    (mamm_CI_topo$HLIratio*0.05) + (mamm_CI_topo$sbd250m_10_rev*0.05)
+  
+mamm_CI_topo$CIStd_mamm =(mamm_CI_topo$SumW_mamm-min(mamm_CI_topo$SumW_mamm))/
+  (max(mamm_CI_topo$SumW_mamm)-min(mamm_CI_topo$SumW_mamm))
+
+############AMPHIBIAN
+
+#1      Novelty_M   0.27
+#2 sbd250m_10_rev   0.155
+#4       twi_mean   0.30
+#5       HLIratio   0.272
+
+amph_CI_topo$SumW_amph =(amph_CI_topo$Novelty_M*0.27) + (amph_CI_topo$twi_mean*0.30) + 
+  (amph_CI_topo$HLIratio*0.272) + (amph_CI_topo$sbd250m_10_rev*0.1555)
+
+amph_CI_topo$CIStd_amph =(amph_CI_topo$SumW_amph-min(amph_CI_topo$SumW_amph))/
+  (max(amph_CI_topo$SumW_amph)-min(amph_CI_topo$SumW_amph))  
+
+
+################reptiles
+
+#Correlation Matrix Summary:
+# Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+#-0.320367 -0.089029 -0.004406 -0.004930  0.080664  0.408792 
+#Optimized Weights:
+#Optimized Weights:
+#  variable weight
+#1      Novelty_M   0.195
+#2     EVH_Groups   0.05
+#3 sbd250m_10_rev   0.089
+#4        tpi_rev   0.30
+#5       twi_mean   0.259
+#6       HLIratio   0.105
+
+
+rept_CI_topo$SumW_rept =(rept_CI_topo$EVH_Groups*0.05) +  (rept_CI_topo$Novelty_M*0.195) + 
+  (rept_CI_topo$tpi_rev*0.3) + (rept_CI_topo$sbd250m_10_rev*0.089) + (rept_CI_topo$twi_mean*0.259)+ (rept_CI_topo$HLIratio*0.105) 
+
+rept_CI_topo$CIStd_rept =(rept_CI_topo$SumW_rept-min(rept_CI_topo$SumW_rept))/
+  (max(rept_CI_topo$SumW_rept)-min(rept_CI_topo$SumW_rept))  
+
+################Birds
+
+#variable weight
+#1     dem_sh3_me   0.269
+#2     mean_watst   0.30
+#3     Pct_northn   0.0871
+#4 sbd250m_10_rev   0.167
+#5       HLIratio   0.175
+
+bird_CI_topo$SumW_bird =(bird_CI_topo$dem_sh3_me*0.269)+(bird_CI_topo$mean_watst*0.3) + 
+  (bird_CI_topo$Pct_northn*0.0871) + 
+  (bird_CI_topo$HLIratio*0.175) + (bird_CI_topo$sbd250m_10_rev*0.167) 
+  
+bird_CI_topo$CIStd_bird =(bird_CI_topo$SumW_bird-min(bird_CI_topo$SumW_bird))/
+  (max(bird_CI_topo$SumW_bird)-min(bird_CI_topo$SumW_bird))  
+
+#climate
+#Optimized Weights:
+# variable weight
+# 1     PctN_bio18_mean   0.1424
+# 2          meandifsmc   0.294
+# 3  Diff_bio9_mean_rev   0.098
+# 4  Diff_bio8_mean_rev   0.05
+# 5  Diff_bio4_mean_rev   0.05
+# 6  Diff_bio1_mean_rev   0.114
+# 7 back_95_55_mean_rev   0.05
+# 8      meandifhmi_rev   0.199
+
+climate_CI$SumW_cl =(climate_CI$PctN_bio18_mean*0.1424)+(climate_CI$meandifsmc*0.294) + 
+  (climate_CI$Diff_bio9_mean_rev*0.098) + 
+  (climate_CI$Diff_bio8_mean_rev*0.05) + (climate_CI$Diff_bio4_mean_rev*0.05) + (climate_CI$Diff_bio1_mean_rev*0.114) + 
+  (climate_CI$back_95_55_mean_rev*0.05) + (climate_CI$meandifhmi_rev*0.199) 
+
+climate_CI$CIStd_cl =(climate_CI$SumW_cl-min(climate_CI$SumW_cl))/(max(climate_CI$SumW_cl)-min(climate_CI$SumW_cl)) 
+
+
+#selecting just the calculated indices
+amph_CI_topo1 = subset(amph_CI_topo, select=c(1,7,8))
+bird_CI_topo1= subset(bird_CI_topo, select=c(1,7,8))
+mamm_CI_topo1= subset(mamm_CI_topo, select=c(1,8,9))
+rept_CI_topo1= subset(rept_CI_topo, select=c(1,8,9))
+#joining all here
+join_CI_taxa = full_join(amph_CI_topo1, full_join(bird_CI_topo1, full_join(mamm_CI_topo1, full_join(rept_CI_topo1, climate_CI))))
+#creating table with original Z values and indices
+join_Z_CI_taxa =full_join(join_CI_taxa, Taxa_Z)                                                   
+#adding the std with std climate. 
+join_Z_CI_taxa$Sum_CI_amph = join_Z_CI_taxa$CIStd_cl + join_Z_CI_taxa$CIStd_amph
+join_Z_CI_taxa$Sum_CI_mamm = join_Z_CI_taxa$CIStd_cl + join_Z_CI_taxa$CIStd_mamm
+join_Z_CI_taxa$Sum_CI_bird = join_Z_CI_taxa$CIStd_cl + join_Z_CI_taxa$CIStd_bird
+join_Z_CI_taxa$Sum_CI_rept = join_Z_CI_taxa$CIStd_cl + join_Z_CI_taxa$CIStd_rept
+# taking average of the two
+join_Z_CI_taxa$Ave_CI_amph = join_Z_CI_taxa$Sum_CI_amph/2
+join_Z_CI_taxa$Ave_CI_mamm = join_Z_CI_taxa$Sum_CI_mamm/2
+join_Z_CI_taxa$Ave_CI_bird = join_Z_CI_taxa$Sum_CI_bird/2
+join_Z_CI_taxa$Ave_CI_rept = join_Z_CI_taxa$Sum_CI_rept/2
 
