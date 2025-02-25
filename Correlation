@@ -1,0 +1,85 @@
+setwd("D:/Data/NMRefugia/")
+#default method is Pearson. Spearman and Kendal also available.
+
+#Files from Combine tables diversity
+#
+
+setwd("D:/Data/NMRefugia/")
+library("Hmisc")
+library("corrplot")
+
+
+View(DEMTopoDiversity0917b)
+#Tables from Combine Tables 
+join_DiversityAll
+Join_DEM_topo
+join_topo_diversity
+join_SoilsAll
+join_DEMSoil
+
+#creating versions without HUC12, which we don't want in correlation
+join_DiversityAll=subset(join_DiversityAll, select=-c(HUC12))
+
+# computing correlation matrix. default is Pearson.
+cor_DivAll = cor(join_DiversityAll, use="complete.obs")
+
+
+print("Correlation matrix")
+print(cor_DivAll)
+
+#Set up parameter for visualization
+Cor_DivAll2 %>%
+  cor_reorder() %>%
+  pull_lower_triangle() %>%
+  cor_plot(label = TRUE, number.cex=7/ncol(Shan3Div))
+
+
+# visualizing correlogram
+# as circle
+corrplot(M_DivAll, method="circle")
+# other variations
+corrplot(M_DivAll, method="pie")
+corrplot(M_DivAll, method="color")
+corrplot(M_DivAll, method="number")
+corrplot(M_DivAll, method="ellipse")
+corrplot(M_DivAll, method="shade")
+
+
+#With P values
+library("rstatix")
+
+Cor_DivAll = cor_mat(join_DiversityAll, method="pearson", conf.level=0.95)
+
+#visualize
+Cor_DivAll %>%
+  cor_reorder() %>%
+  pull_lower_triangle() %>%
+  cor_plot(label = TRUE, cex.lab=0.1, cex.axis=0.1, cex.sub=0.1)
+
+
+#visualize
+par(cex=0.7)
+Cor_DivAll %>%
+  cor_reorder() %>%
+  pull_lower_triangle() %>%
+  cor_plot(label = TRUE) 
+
+number.cex=7/ncol(Shan3Div))
+# visualizing correlogram
+# as circle
+corrplot(Cor_DivAll, method="circle")
+
+
+plot(p_values)
+# as pie
+corrplot(M_DivAll, method="pie")
+
+# as colour
+corrplot(M_DivAll, method="color")
+
+# as number
+corrplot(M_DivAll, method="number")
+corrplot(M_DivAll, method="ellipse")
+
+# density plot type
+corrplot(M_DivAll, method="shade")
