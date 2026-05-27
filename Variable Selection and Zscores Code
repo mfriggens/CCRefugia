@@ -1,5 +1,10 @@
-## This code generates composite scores for each taxa. Scores include weights determined through optimization step
+################################################################################
+# CLIMATE REFUGIA COMPOSITE INDEX: Z scores and weighted values for each taxa and climate data
+### This code generates composite scores for each taxa. Scores include weights determined through optimization step.
+### This code is specific to analysis report and not meant for distribution. It is copied here for sake of record.
 ## Used this file to link HUC12 designations to CI. 
+## Created by M. Friggens, Finalized 2025
+################################################################################
 
 library("Hmisc")
 library("corrplot")
