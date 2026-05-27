@@ -1,38 +1,56 @@
-setwd("D:/Data/NMRefugia/")
-#default method is Pearson. Spearman and Kendal also available.
+################################################################################
+# CLIMATE REFUGIA COMPOSITE INDEX: Correlation of raw data
+#
+# This script performs:
+# 1. Prep Data
+# 2. Correlations
+# 3. Visualization for #2
+#
+# Author: M Friggens
+# Finalized: 2026-03-25
+
+##################################
+#1. Prep Tables
+##################################
 
 #Files from Combine tables diversity
-#
 
-setwd("D:/Data/NMRefugia/")
+setwd(" ")
 library("Hmisc")
 library("corrplot")
 
 
 View(DEMTopoDiversity0917b)
-#Tables from Combine Tables 
-join_DiversityAll
-Join_DEM_topo
-join_topo_diversity
-join_SoilsAll
-join_DEMSoil
+#Tables from R-Combine Tables 
+join_DiversityAll #Contains all species richness values from GAP
+Join_DEM_topo #Contains all Topo variables derived from DEM
+join_topo_diversity # Contains all diversity variables based on stdev, shannon's and spearman calculations for topo and veg variables, 
+join_SoilsAll #contains all soil texture, sma, depth data
+join_DEMSoil #contains soil bulk density
 
 #creating versions without HUC12, which we don't want in correlation
+#Example:
 join_DiversityAll=subset(join_DiversityAll, select=-c(HUC12))
 
-# computing correlation matrix. default is Pearson.
+#############################################
+# 2. computing correlation matrix. default is Pearson. Spearman and Kendal also available.
+#############################################
+
 cor_DivAll = cor(join_DiversityAll, use="complete.obs")
 
 
 print("Correlation matrix")
 print(cor_DivAll)
 
+#####################################
+# 3. Visualization
+#####################################
+
 #Set up parameter for visualization
 Cor_DivAll2 %>%
   cor_reorder() %>%
   pull_lower_triangle() %>%
   cor_plot(label = TRUE, number.cex=7/ncol(Shan3Div))
-
 
 # visualizing correlogram
 # as circle
